@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import styles from './Chat.module.css';
 
 type WebSocketState = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "UNKNOWN";
 
-interface WebRTCChatProps {
+interface ChatProps {
     ws: React.RefObject<WebSocket>;
     messageFromWs: string
     wsState: WebSocketState
@@ -14,7 +15,7 @@ interface ClientPackage {
     message: string
 }
 
-const WebRTCChat = ({ ws, messageFromWs, wsState }: WebRTCChatProps) : React.JSX.Element => {
+const Chat = ({ ws, messageFromWs, wsState }: ChatProps) : React.JSX.Element => {
     let [codeInput, setCodeInput] = useState<ClientPackage>({
         type: "MESSAGE",
         message: ""
@@ -47,21 +48,21 @@ const WebRTCChat = ({ ws, messageFromWs, wsState }: WebRTCChatProps) : React.JSX
     };
 
     return (
-        <div>
-        <h2>WebSocket State: {wsState}</h2>
+        <div className={styles.container}>
+        <h2 className={styles.title}>WebSocket State: {wsState}</h2>
         <p>Message: {messageFromWs}</p>
         <input
-            style={{ background: '#000', color: '#fff' }}
+            className={styles.messageInput}
             type="text"
             value={codeInput.message}
             onChange={handleChange}
         />
         <div>
-            <button onClick={sendMessage}>Send Message</button>
-            <button onClick={disconnect}>Disconnect</button>
+            <button className={styles.button} onClick={sendMessage}>Send Message</button>
+            <button className={styles.button} onClick={disconnect}>Disconnect</button>
         </div>
     </div>
     );
 };
 
-export default WebRTCChat;
+export default Chat;

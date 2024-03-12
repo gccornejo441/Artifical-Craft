@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import WebRTCChat from './components/WRTCConfig';
+import Chat from './components/Chat';
 import ModalForm from './components/Form';
 import './App.css';
 
@@ -66,7 +66,7 @@ function App() {
           formData={formData}
           setFormData={setFormData}
         />
-        <WebRTCChat
+        <Chat
           wsState={wsState}
           messageFromWs={message}
           ws={ws} />
