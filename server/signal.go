@@ -14,7 +14,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Adjust this to a more secure setting in production
+		return true
 	},
 }
 
@@ -32,6 +32,8 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer c.Close()
+
 	config := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
@@ -39,9 +41,6 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-
-	defer c.Close()
-
 	pc, err := webrtc.NewPeerConnection(config)
 	if err != nil {
 		panic(err)

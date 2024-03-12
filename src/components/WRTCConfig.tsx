@@ -17,51 +17,18 @@ const WebSocketReadyState = (websocket: WebSocket) => {
 
 type WebSocketState = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "UNKNOWN";
 
-const WebRTCChat = () => {
-    const [message, setMessage] = useState<string>()
-    const [wsState, setWsState] = useState<WebSocketState>("UNKNOWN");
-    const ws = useRef<WebSocket>();
+interface WebRTCChatProps {
+    ws: React.RefObject<WebSocket>;
+    messageFromWs: string
+    wsState: WebSocketState
+}
+
+const WebRTCChat: React.FC<WebRTCChatProps> = ({ ws, messageFromWs, wsState }) => {
 
     useEffect(() => {
-        ws.current = new WebSocket("ws://localhost:8080/ws");
+        if (!ws.current) return;
+
         const wsCurrent = ws.current;
-
-        const checkWsState = () => setWsState(WebSocketReadyState(wsCurrent));
-
-        wsCurrent.onopen = (event) => {
-            console.log("Connected 😀");
-            checkWsState();
-        };
-
-        wsCurrent.onmessage = (event) => {
-            console.log("Message received", event.data);
-            if (typeof (event.data) === 'string') {
-                setMessage(event.data);
-            } else if (event.data instanceof Blob) {
-                const reader = new FileReader();
-                reader.onload =  () => {
-                    reader.result ?? setMessage('No result available from reader');
-                    setMessage(reader.result?.toString());
-                };
-                reader.readAsText(event.data);
-            } else if (event.data instanceof ArrayBuffer) {
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(event.data);
-                setMessage(text);
-            }
-        };
-
-        wsCurrent.onerror = (error) => {
-            console.error("WebSocket Error", error);
-            checkWsState();
-        };
-
-        wsCurrent.onclose = (event) => {
-            console.log("Disconnected", event.reason);
-            checkWsState();
-        };
-
-        checkWsState(); 
 
         return () => {
             wsCurrent.close();
@@ -76,9 +43,9 @@ const WebRTCChat = () => {
             alert('Please enter a message');
         } else {
             console.log("Outgoing message", msg);
-            if (ws.current){
+            if (ws.current) {
                 ws.current.send(msg);
-            } else {    
+            } else {
                 alert('WebSocket not connected');
                 console.error('WebSocket not connected');
             }
@@ -86,7 +53,7 @@ const WebRTCChat = () => {
     };
 
     const disconnect = () => {
-        if(ws.current) {
+        if (ws.current) {
             ws.current.close();
         } else {
             alert('WebSocket not connected');
@@ -96,12 +63,13 @@ const WebRTCChat = () => {
 
     return (
         <div>
+
             <h2>WebSocket State: {wsState}</h2>
-            <p>Message: {message}</p>
+            <p>Message: {messageFromWs}</p>
             <input type="text" id="message" />
             <div>
                 <button onClick={sendMessage}>Send Message</button>
-                <button style={{ background: "blue" }} onClick={disconnect}>Disconnect</button>
+                <button onClick={disconnect}>Disconnect</button>
             </div>
         </div>
     );
