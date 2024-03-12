@@ -1,19 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-const WebSocketReadyState = (websocket: WebSocket) => {
-    switch (websocket.readyState) {
-        case WebSocket.CONNECTING:
-            return "CONNECTING";
-        case WebSocket.OPEN:
-            return "OPEN";
-        case WebSocket.CLOSING:
-            return "CLOSING";
-        case WebSocket.CLOSED:
-            return "CLOSED";
-        default:
-            return "UNKNOWN";
-    }
-};
+import React, { useState } from 'react';
 
 type WebSocketState = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "UNKNOWN";
 
@@ -23,36 +8,36 @@ interface WebRTCChatProps {
     wsState: WebSocketState
 }
 
-const WebRTCChat: React.FC<WebRTCChatProps> = ({ ws, messageFromWs, wsState }) => {
+type OutgoingMessageType = "MESSAGE" | "CODE";
+interface ClientPackage {
+    type: OutgoingMessageType,
+    message: string
+}
 
-    useEffect(() => {
-        if (!ws.current) return;
+const WebRTCChat = ({ ws, messageFromWs, wsState }: WebRTCChatProps) : React.JSX.Element => {
+    let [codeInput, setCodeInput] = useState<ClientPackage>({
+        type: "MESSAGE",
+        message: ""
+    });
 
-        const wsCurrent = ws.current;
-
-        return () => {
-            wsCurrent.close();
-        };
-    }, []);
-
-    const sendMessage = () => {
-        const msgInput = document.getElementById('message') as HTMLInputElement;
-        const msg = msgInput.value
-
-        if (msg === '') {
+    const sendMessage = (): void => {
+        if (codeInput.message === '') {
             alert('Please enter a message');
+        } else if (ws.current) {
+            console.log("Outgoing message", codeInput);
+            ws.current.send(JSON.stringify(codeInput));
         } else {
-            console.log("Outgoing message", msg);
-            if (ws.current) {
-                ws.current.send(msg);
-            } else {
-                alert('WebSocket not connected');
-                console.error('WebSocket not connected');
-            }
+            alert('WebSocket not connected');
+            console.error('WebSocket not connected');
         }
     };
 
-    const disconnect = () => {
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCodeInput({ ...codeInput, message: e.target.value });
+    };
+
+    const disconnect = (): void => {
         if (ws.current) {
             ws.current.close();
         } else {
@@ -63,15 +48,19 @@ const WebRTCChat: React.FC<WebRTCChatProps> = ({ ws, messageFromWs, wsState }) =
 
     return (
         <div>
-
-            <h2>WebSocket State: {wsState}</h2>
-            <p>Message: {messageFromWs}</p>
-            <input type="text" id="message" />
-            <div>
-                <button onClick={sendMessage}>Send Message</button>
-                <button onClick={disconnect}>Disconnect</button>
-            </div>
+        <h2>WebSocket State: {wsState}</h2>
+        <p>Message: {messageFromWs}</p>
+        <input
+            style={{ background: '#000', color: '#fff' }}
+            type="text"
+            value={codeInput.message}
+            onChange={handleChange}
+        />
+        <div>
+            <button onClick={sendMessage}>Send Message</button>
+            <button onClick={disconnect}>Disconnect</button>
         </div>
+    </div>
     );
 };
 

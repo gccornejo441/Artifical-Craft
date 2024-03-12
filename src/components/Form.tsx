@@ -14,12 +14,10 @@ interface FormState {
 const ModalForm: React.FC<ModalFormProps> = ({ formData, setFormData, ws }) => {
     const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
 
-    const handleChange = (
-        e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLTextAreaElement> | React.ChangeEvent<HTMLSelectElement>
-    ) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         console.log(e.target.value)
         const target = e.target;
-        const name = target.name; // Use 'name' attribute for form elements
+        const name = target.name;
         const value = target.value;
         setFormData(prevFormData => ({
             ...prevFormData,

@@ -25,6 +25,11 @@ type SessionDescription struct {
 	SDP  string  `json:"sdp"`
 }
 
+type ClientPackage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
 func Signal(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -80,6 +85,8 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for {
+		var clientPkg ClientPackage
+		
 		messageType, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
@@ -92,6 +99,8 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 
 		if string(message) == "Ping" {
 			myMessageToSender = []byte("Pong!")
+		} else {
+			myMessageToSender = []byte("Hi, Pal")
 		}
 
 		c.WriteMessage(messageType, myMessageToSender)
