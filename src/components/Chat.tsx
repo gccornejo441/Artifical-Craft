@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Chat.module.css';
+import { MessageContainer } from './MessageContainer';
 
-const Chat = ({ ws, messageFromWs, wsState }: ChatProps) : React.JSX.Element => {
+const Chat = ({ ws, messageFromWs, wsState }: ChatProps): React.JSX.Element => {
     let [codeInput, setCodeInput] = useState<ClientPackage>({
         type: "MESSAGE",
         message: ""
@@ -11,7 +12,7 @@ const Chat = ({ ws, messageFromWs, wsState }: ChatProps) : React.JSX.Element => 
     useEffect(() => {
         const cachedSessionID = localStorage.getItem("sessionID");
         const cachedSDP = JSON.parse(localStorage.getItem("sdp") || '{}');
-        
+
         if (cachedSessionID && cachedSDP) {
             setSessionID(cachedSessionID);
         }
@@ -28,7 +29,7 @@ const Chat = ({ ws, messageFromWs, wsState }: ChatProps) : React.JSX.Element => 
             console.error('WebSocket not connected or not ready');
         }
     };
-    
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCodeInput({ ...codeInput, message: e.target.value });
     };
@@ -44,21 +45,30 @@ const Chat = ({ ws, messageFromWs, wsState }: ChatProps) : React.JSX.Element => 
 
 
     return (
-        <div className={styles.container}>
-        <h1 className={styles.title}>WebSocket Chat: {sessionID}</h1>
-        <h2 className={styles.title}>WebSocket State: {wsState}</h2>
-        <p className={styles.message}>Message: {messageFromWs}</p>
-        <input
-            className={styles.messageInput}
-            type="text"
-            value={codeInput.message}
-            onChange={handleChange}
-        />
         <div>
-            <button className={styles.button} onClick={sendMessage}>Send Message</button>
-            <button className={styles.button} onClick={disconnect}>Disconnect</button>
+            <div>
+                <MessageContainer message={messageFromWs} />
+            </div>
+            <div className={styles.container}>
+                <h1 className={styles.title}>WebSocket Chat: {sessionID}</h1>
+                {wsState === "CLOSED" ?
+                    <p className={styles.message}>WebSocket connection state: 
+                    <p style={{ color: "red" }}>{wsState}</p></p> :
+                    <p className={styles.message}>WebSocket connection state: {wsState}
+                    </p>}
+                {/* <p className={styles.message}>Message: {messageFromWs}</p> */}
+                <input
+                    className={styles.messageInput}
+                    type="text"
+                    value={codeInput.message}
+                    onChange={handleChange}
+                />
+                <div>
+                    <button className={styles.button} onClick={sendMessage}>Send Message</button>
+                    <button className={styles.button} onClick={disconnect}>Disconnect</button>
+                </div>
+            </div>
         </div>
-    </div>
     );
 };
 

@@ -1,20 +1,19 @@
-// hooks/useWebSocket.tsx
 import { useEffect, useRef, useState } from 'react';
 
-export const WebSocketReadyState = (websocket: WebSocket) : string => {
-    switch (websocket.readyState) { 
-      case WebSocket.CONNECTING:
-        return "CONNECTING";
-      case WebSocket.OPEN:
-        return "OPEN";
-      case WebSocket.CLOSING:
-        return "CLOSING";
-      case WebSocket.CLOSED:
-        return "CLOSED";
-      default:
-        return "UNKNOWN";
-    }
-  };
+export const WebSocketReadyState = (websocket: WebSocket): string => {
+  switch (websocket.readyState) {
+    case WebSocket.CONNECTING:
+      return "CONNECTING";
+    case WebSocket.OPEN:
+      return "OPEN";
+    case WebSocket.CLOSING:
+      return "CLOSING";
+    case WebSocket.CLOSED:
+      return "CLOSED";
+    default:
+      return "UNKNOWN";
+  }
+};
 
 export const useWebSocket = (url: string) => {
   const ws = useRef<WebSocket | null>(null);
@@ -40,18 +39,21 @@ export const useWebSocket = (url: string) => {
     //"sdp":"v=0\r\no=- 9162965593960627838 1710295559 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\na=fingerprint:sha-256 AF:C1:82:30:53:56:04:6F:8F:BA:79:F1:19:42:80:79:C7:42:22:3E:F1:BA:EA:E4:4A:8A:C3:44:46:2F:90:28\r\na=extmap-allow-mixed\r\n"}}
     wsCurrent.onmessage = (event) => {
       console.log("Message received", event.data);
-      
+
       if (typeof event.data === 'string') {
-        const message = JSON.parse(event.data);
-        
-        if (message.sessionID && message.sdp) {
-          localStorage.setItem("sessionID", message.sessionID);
-          localStorage.setItem("sdp", JSON.stringify(message.sdp));
-          
-          console.log("Session information cached");
+        try {
+          const message = JSON.parse(event.data);
+
+          if (message.sessionID && message.sdp) {
+            sessionStorage.setItem("sessionID", message.sessionID);
+            sessionStorage.setItem("sdp", JSON.stringify(message.sdp));
+
+            console.log("Session information cached");
+          }
+          setMessage(event.data);
+        } catch (error) {
+          console.error("Error parsing JSON from WebSocket message:", error);
         }
-        
-        setMessage(event.data);
       }
     };
 
@@ -63,7 +65,7 @@ export const useWebSocket = (url: string) => {
     return () => {
       wsCurrent.close();
     };
-    
+
   }, [url, ws]);
 
   const sendMessage = (data: ClientPackage) => {
