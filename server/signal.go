@@ -1,20 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+    "github.com/pion/webrtc/v4"
 
-	"fmt"
-
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/pion/webrtc/v4"
 )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return true // Allow all origins
 	},
 }
 
@@ -25,9 +25,15 @@ type SessionDescription struct {
 	SDP  string  `json:"sdp"`
 }
 
+type ICECandidate struct {
+	Candidate string `json:"candidate"`
+}
+
 type ClientPackage struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
+	Type    string             `json:"type"`
+	Message string             `json:"message"`
+	SDP     SessionDescription `json:"sdp,omitempty"`
+	ICE     ICECandidate       `json:"ice,omitempty"`
 }
 
 func Signal(w http.ResponseWriter, r *http.Request) {
@@ -36,73 +42,66 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 		log.Print("upgrade:", err)
 		return
 	}
-
 	defer c.Close()
 
-	config := webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{
-			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
-			},
-		},
-	}
-	pc, err := webrtc.NewPeerConnection(config)
-	if err != nil {
-		panic(err)
-	}
+    peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{})
+    if err != nil {
+        log.Println("Failed to create a new PeerConnection:", err)
+        return
+    }
+    defer peerConnection.Close()
 
-	dc, err := pc.CreateDataChannel("chat", nil)
-	if err != nil {
-		panic(err)
-	}
+    for {
+        var clientPkg ClientPackage
+        _, message, err := c.ReadMessage()
+        if err != nil {
+            log.Println("read:", err)
+            break
+        }
 
-	dc.OnOpen(func() {
-		err = dc.SendText("Hello World")
-	})
+        err = json.Unmarshal(message, &clientPkg)
+        if err != nil {
+            log.Printf("Error unmarshalling: %v", err)
+            continue
+        }
 
-	pc.OnDataChannel(func(d *webrtc.DataChannel) {
-		dc.OnOpen(func() {
-			fmt.Printf("New stream received from DataChannel '%s'\n", d.Label())
-		})
+        if clientPkg.Type == "PRODUCE_CODE" {
+            // Generate a UUID for the session ID
+            sessionID := uuid.New().String()
 
-		d.OnMessage(func(msg webrtc.DataChannelMessage) {
-			fmt.Printf("Message from DataChannel '%s': %s\n", d.Label(), string(msg.Data))
-		})
-	})
+            // Create an SDP offer
+            offer, err := peerConnection.CreateOffer(nil)
+            if err != nil {
+                log.Println("Failed to create offer:", err)
+                continue
+            }
 
-	pc.OnICEConnectionStateChange(func(connState webrtc.ICEConnectionState) {
-		fmt.Printf("ICE Connection State has changed: %s\n", connState.String())
-	})
+            // Set the local description to the offer
+            err = peerConnection.SetLocalDescription(offer)
+            if err != nil {
+                log.Println("Failed to set local description:", err)
+                continue
+            }
 
-	offer, err := pc.CreateAnswer(nil)
-	if err != nil {
-		panic(err)
-	}
+            // Send the offer as JSON including the session ID, SDP, and ICE candidates
+            response := struct {
+                SessionID string                  `json:"sessionID"`
+                SDP       webrtc.SessionDescription `json:"sdp"`
+            }{
+                SessionID: sessionID,
+                SDP:       offer,
+            }
 
-	err = pc.SetLocalDescription(offer)
-	if err != nil {
-		panic(err)
-	}
+            respJSON, err := json.Marshal(response)
+            if err != nil {
+                log.Println("Failed to marshal response:", err)
+                continue
+            }
 
-	for {
-		var clientPkg ClientPackage
-		
-		messageType, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-
-		log.Printf("recv: %s", message)
-
-		var myMessageToSender = []byte("Pong!")
-
-		if string(message) == "Ping" {
-			myMessageToSender = []byte("Pong!")
-		} else {
-			myMessageToSender = []byte("Hi, Pal")
-		}
-
-		c.WriteMessage(messageType, myMessageToSender)
-	}
+            if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
+                log.Println("Failed to send message:", err)
+                continue
+            }
+        }
+    }
 }

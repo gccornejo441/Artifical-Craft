@@ -6,52 +6,56 @@ interface FormState {
   }
 
   interface ModalFormProps {
-    formData: FormState;     
-    setFormData: React.Dispatch<React.SetStateAction<FormState>>;
     ws: React.RefObject<WebSocket>;
   }
   
-const ModalForm: React.FC<ModalFormProps> = ({ formData, setFormData, ws }) => {
+const ModalForm = ({ ws }: ModalFormProps) => {
     const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
+    let [codeInput, setCodeInput] = useState<ClientPackage>({
+        type: "CODE",
+        message: ""
+    });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(e.target.value)
-        const target = e.target;
-        const name = target.name;
-        const value = target.value;
-        setFormData(prevFormData => ({
-            ...prevFormData,
-            [name]: value,
-        }));
+        setCodeInput({ ...codeInput, message: e.target.value });
     };
 
-    const handleSubmit = (e: FormEvent) => {
-        e.preventDefault();
-        
-        if (ws.current) {
-            ws.current.send(formData.code);
-            console.log("Message sent", formData.code);
+    const sendMessage = (): void => {
+        if (codeInput.message === '') {
+            alert('Please enter a message');
+        } else if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            console.log("Outgoing message", codeInput);
+            ws.current.send(JSON.stringify(codeInput));
+            setIsModalOpen(false);
+        } else {
+            alert('WebSocket not connected or not ready');
+            console.error('WebSocket not connected or not ready');
+            setIsModalOpen(false);
         }
-
-        setIsModalOpen(false);
     };
 
+    const produceCode = (): void => {
+        if(ws.current && ws.current.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify({type: "PRODUCE_CODE", message: ""}));
+            setIsModalOpen(false);
+        }
+    }
+    
     return (
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-            <form onSubmit={handleSubmit}>
-                <fieldset>
-                    <label htmlFor="code">Code</label>
+            <h2>Enter code</h2>
+            <label htmlFor="code">Code</label>
                     <input
                         type="text"
                         placeholder="Enter code"
                         name="code"
-                        value={formData.code}
+                        value={codeInput.message}
                         style={{ textAlign: 'center' }}
                         onChange={handleChange}
                     />
-                    <input className="button-primary" type="submit" value="Send" />
-                </fieldset>
-            </form>
+                    <label htmlFor="code">Code</label>
+                    <button className="button-primary" onClick={sendMessage}>Send Code</button>
+                    <button onClick={produceCode} >Don't have code?</button>
         </Modal>
     );
 }

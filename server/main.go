@@ -16,6 +16,10 @@ func main() {
 		Signal(c.Writer, c.Request)
 	})
 
+	r.GET("/api/ws", func(c *gin.Context) {
+		FauxWebSocket(c.Writer, c.Request)
+	})
+
 	r.POST("/code", HandleCode)
 
 	//r.GET("/todo", Faux)

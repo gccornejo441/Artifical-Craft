@@ -1,76 +1,32 @@
-import React, { useRef, useEffect, useState } from 'react';
 import Chat from './components/Chat';
 import ModalForm from './components/Form';
 import './App.css';
+import IPAddressDisplay from './components/IPAddress';
+import { useWebSocket } from './hooks/useWebSocket';
+import { useWebRTCClient } from './hooks/useWebRTCClient';
 
-const WebSocketReadyState = (websocket: WebSocket) => {
-  switch (websocket.readyState) {
-    case WebSocket.CONNECTING:
-      return "CONNECTING";
-    case WebSocket.OPEN:
-      return "OPEN";
-    case WebSocket.CLOSING:
-      return "CLOSING";
-    case WebSocket.CLOSED:
-      return "CLOSED";
-    default:
-      return "UNKNOWN";
-  }
-};
 
 interface FormState {
   code: string;
 }
 
-type WebSocketState = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "UNKNOWN";
-
 function App() {
-  var ws = useRef<WebSocket | null>(null);
-  const [wsState, setWsState] = useState<WebSocketState>("UNKNOWN");
-  const [message, setMessage] = useState<string>("")
-  const [formData, setFormData] = useState<FormState>({
-    code: "",
-  });
-
-  useEffect(() => {
-    ws.current = new WebSocket("ws://localhost:8080/ws");
-    if (!ws.current) return;
-
-    const wsCurrent = ws.current;
-    const checkWsState = () => setWsState(WebSocketReadyState(wsCurrent));
-
-    ws.current.onopen = (event) => {
-      console.log("Connected 😀");
-      checkWsState();
-    };
-
-    ws.current.onmessage = (event) => {
-      console.log("Message received", event.data);
-      if (typeof (event.data) === 'string') {
-        setMessage(event.data);
-      }
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("WebSocket Error", error);
-      checkWsState();
-    };
-
-  }, [ws])
+    const wsUrl = "ws://localhost:8080/ws"
+  const { ws, wsState, message } = useWebSocket(wsUrl);
+  const { peerConnection } = useWebRTCClient(wsUrl);
 
   return (
     <div className="App">
       <header className="App-header">
-        <ModalForm
-          ws={ws}
-          formData={formData}
-          setFormData={setFormData}
-        />
-        <Chat
-          wsState={wsState}
-          messageFromWs={message}
-          ws={ws} />
+        <h1>Tegridy</h1>
       </header>
+      <main className='App-main'>
+        <ModalForm ws={ws}  />
+        <Chat ws={ws} messageFromWs={message} wsState={wsState} />
+      </main>
+      <footer className='App-footer'>
+        <IPAddressDisplay />
+      </footer>
     </div>
   );
 }
