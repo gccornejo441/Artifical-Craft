@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pion/webrtc/v4"
@@ -18,7 +19,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins
+		return true
 	},
 }
 
@@ -53,13 +54,21 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 		log.Println("Failed to create a new PeerConnection:", err)
 		return
 	}
+
 	defer peerConnection.Close()
+
+	ctx := context.Background()
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
 
 	for {
 		var clientPkg ClientPackage
 		_, message, err := c.ReadMessage()
 		if err != nil {
-			log.Println("**********Error reading message:", err)
+			log.Println("Error reading message:", err)
 			break
 		}
 
@@ -70,108 +79,147 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if clientPkg.Type == "PRODUCE_CODE" {
-			// Generate a UUID for the session ID
-			sessionID := uuid.New().String()
+			sessionID := clientPkg.Message
+			val, err := rdb.Get(ctx, sessionID).Result()
+			if err == redis.Nil {
+				log.Println("Session not found in Redis, creating new session")
+				sessionID = uuid.New().String()
 
-			// Create an SDP offer
-			offer, err := peerConnection.CreateOffer(nil)
-			if err != nil {
-				log.Println("Failed to create offer:", err)
-				continue
-			}
+				offer, err := peerConnection.CreateOffer(nil)
+				if err != nil {
+					log.Println("Failed to create offer:", err)
+					continue
+				}
 
-			// Set the local description to the offer
-			err = peerConnection.SetLocalDescription(offer)
-			if err != nil {
-				log.Println("Failed to set local description:", err)
-				continue
-			}
+				err = peerConnection.SetLocalDescription(offer)
+				if err != nil {
+					log.Println("Failed to set local description:", err)
+					continue
+				}
 
-			// Send the offer as JSON including the session ID, SDP, and ICE candidates
-			response := struct {
-				SessionID string                    `json:"sessionID"`
-				SDP       webrtc.SessionDescription `json:"sdp"`
-			}{
-				SessionID: sessionID,
-				SDP:       offer,
-			}
+				clientPkg.SDP = SessionDescription{Type: "offer", SDP: offer.SDP}
+				RedisBank(sessionID, clientPkg, rdb)
 
-			respJSON, err := json.Marshal(response)
-			if err != nil {
-				log.Println("Failed to marshal response:", err)
-				continue
-			}
+				response := struct {
+					SessionID string                    `json:"sessionID"`
+					SDP       webrtc.SessionDescription `json:"sdp"`
+				}{
+					SessionID: sessionID,
+					SDP:       offer,
+				}
 
-			if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
-				log.Println("Failed to send message:", err)
-				continue
+				respJSON, err := json.Marshal(response)
+				if err != nil {
+					log.Println("Failed to marshal response:", err)
+					continue
+				}
+
+				if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
+					log.Println("Failed to send message:", err)
+					continue
+				}
+			} else if err != nil {
+				log.Printf("Error retrieving session from Redis: %v", err)
+			} else {
+				if err := c.WriteMessage(websocket.TextMessage, []byte(val)); err != nil {
+					log.Println("Failed to send Redis data:", err)
+				}
 			}
 		}
 
 		if clientPkg.Type == "CODE" {
-			sessionID := uuid.New().String()
+			log.Println("Received code:", clientPkg.Message)
+			sessionData, err := RetrieveFromRedis(clientPkg.Message)
+			if err != nil {
+				log.Printf("Error retrieving session from Redis: %v", err)
+			}
 
-			RedisBank(sessionID, clientPkg)
-
-			c.WriteMessage(websocket.TextMessage, []byte(sessionID))
-		}
-
-		if clientPkg.Type == "MESSAGE" {
-
-			log.Println("Received message:", clientPkg.Message)
-
-			clientMsgString := string(clientPkg.Message)
-
-			if clientMsgString == "ping" || clientMsgString == "Pong" {
-
-				pongResponse := struct {
-					Type    string `json:"type"`
-					Message string `json:"message"`
-				}{
-					Type:    "PONG",
-					Message: "Pong",
-				}
-
-				respJSON, err := json.Marshal(pongResponse)
-				if err != nil {
-					log.Println("Failed to marshal response:", err)
-					continue
-				}
-
-				if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
+			if sessionData != nil {
+				if err := c.WriteMessage(websocket.TextMessage, sessionData); err != nil {
 					log.Println("Failed to send message:", err)
 					continue
 				}
 			} else {
+				errMsg := "No session found in Redis"
 
-				clientPkg.Message = "Hello, User!"
-				clientPkg.Type = "Message"
-				
-				respJSON, err := json.Marshal(clientPkg)
-				if err != nil {
-					log.Println("Failed to marshal response:", err)
-					continue
-				}
+				if err := c.WriteMessage(websocket.TextMessage, []byte(errMsg)); err != nil {
 
-				if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
 					log.Println("Failed to send message:", err)
 					continue
 				}
+
+				log.Println(errMsg)
 			}
 		}
+
+		if clientPkg.Type == "MESSAGE" {
+			handleClientMessage(c, clientPkg)
+		}
+
 	}
 }
 
+func handleClientMessage(c *websocket.Conn, clientPkg ClientPackage) {
+	log.Println("Received message:", clientPkg.Message)
 
-func RedisBank(sessionID string, clientPackage ClientPackage) {
+	clientMsgString := strings.ToLower(clientPkg.Message)
+
+	var response interface{}
+
+	if clientMsgString == "ping" {
+		response = struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		}{
+			Type:    "PONG",
+			Message: "Pong",
+		}
+	} else {
+		clientPkg.Message = "Hello, User!"
+		clientPkg.Type = "Message"
+		response = clientPkg
+	}
+
+	sendResponse(c, response)
+}
+
+func sendResponse(c *websocket.Conn, response interface{}) {
+	respJSON, err := json.Marshal(response)
+	if err != nil {
+		log.Println("Failed to marshal response:", err)
+		return
+	}
+
+	if err := c.WriteMessage(websocket.TextMessage, respJSON); err != nil {
+		log.Println("Failed to send message:", err)
+	}
+}
+
+func RetrieveFromRedis(sessionID string) ([]byte, error) {
 	ctx := context.Background()
-
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
 	})
+
 	defer rdb.Close()
+
+	data, err := rdb.Get(ctx, sessionID).Bytes()
+	if err == redis.Nil {
+		log.Printf("Session not found for ID: %s", sessionID)
+		return nil, nil
+	} else if err != nil {
+		log.Printf("Error retrieving session from Redis: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Session retrieved from Redis with ID: %s", sessionID)
+	return data, nil
+}
+
+func RedisBank(sessionID string, clientPackage ClientPackage, rdb *redis.Client) {
+	ctx := context.Background()
 
 	pkgJSON, err := json.Marshal(clientPackage)
 	if err != nil {

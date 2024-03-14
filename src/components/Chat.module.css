@@ -1,6 +1,6 @@
 /* Chat.module.css */
 .container {
-    padding: 20px;
+    padding: 10px;
     background-color: #f5f5f5;
     border-radius: 8px;
 }
@@ -35,3 +35,19 @@ p.message {
     background-color: #cccccc;
     cursor: not-allowed;
 }
+
+.relaxedInputContainer {
+   background-color: white;
+
+   
+}
+.relaxedInput{ 
+    border: none;
+    outline: none;
+    padding-left: 55px;
+    padding-right: 55px;
+    color: #666;
+    font-weight: 400;
+    font-size: 16px;
+}
+

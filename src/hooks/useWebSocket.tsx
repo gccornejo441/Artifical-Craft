@@ -32,11 +32,6 @@ export const useWebSocket = (url: string) => {
       checkWsState();
     };
 
-    //Message received {
-    //"sessionID":"37f4393f-1999-4a13-9560-a341a20af0dd",
-    //"sdp":
-    //{"type":"offer",
-    //"sdp":"v=0\r\no=- 9162965593960627838 1710295559 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\na=fingerprint:sha-256 AF:C1:82:30:53:56:04:6F:8F:BA:79:F1:19:42:80:79:C7:42:22:3E:F1:BA:EA:E4:4A:8A:C3:44:46:2F:90:28\r\na=extmap-allow-mixed\r\n"}}
     wsCurrent.onmessage = (event) => {
       console.log("Message received", event.data);
 
@@ -49,12 +44,15 @@ export const useWebSocket = (url: string) => {
             sessionStorage.setItem("sdp", JSON.stringify(message.sdp));
 
             console.log("Session information cached");
+
+          } else {
+            console.log("Received message:", message.message);
+            setMessage(message.message);
           }
-          setMessage(event.data);
         } catch (error) {
           console.error("Error parsing JSON from WebSocket message:", error);
         }
-      }
+      } 
     };
 
     wsCurrent.onerror = (error) => {

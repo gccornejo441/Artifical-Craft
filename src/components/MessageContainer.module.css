@@ -3,6 +3,14 @@
     color: #333;
     border: none;
     padding: 8px 16px;
+    min-width: 200px;
+    max-width: 600px;
+    min-height: 100px;
+    height: fit-content;
+    max-height: 500px;
+    overflow-y: scroll;
+    scroll-behavior: smooth;
+    overflow-wrap: break-word;
     border-radius: 4px;
     width: calc(100% - 32px);
     margin: 10px;
@@ -13,12 +21,18 @@
 }
 
 .messageBubble {
+  
+}
+
+p.message {
     background: #007bff;
     color: #fff;
     border-radius: 4px;
     width: fit-content;
-}
-
-p.message {
     padding: 5px;
+    margin: 10px;
+    margin-left: 0;
+    word-break: break-word;
+    line-height: 1.5;
+    font-size: 18px;
 }

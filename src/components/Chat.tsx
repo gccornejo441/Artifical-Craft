@@ -46,16 +46,20 @@ const Chat = ({ ws, messageFromWs, wsState }: ChatProps): React.JSX.Element => {
 
     return (
         <div>
+            <div className={styles.container}>
+                {wsState === "CLOSED" ?
+                    <p className={styles.message}>
+                        <h3 className={styles.title}>WebSocket Chat:
+                            <span style={{ color: "red" }}>{wsState}</span>
+                        </h3>
+                    </p> :
+                    <h3 className={styles.title}>WebSocket Chat: {wsState}</h3>
+                }
+            </div>
             <div>
                 <MessageContainer message={messageFromWs} />
             </div>
             <div className={styles.container}>
-                <h1 className={styles.title}>WebSocket Chat: {sessionID}</h1>
-                {wsState === "CLOSED" ?
-                    <p className={styles.message}>WebSocket connection state: 
-                    <p style={{ color: "red" }}>{wsState}</p></p> :
-                    <p className={styles.message}>WebSocket connection state: {wsState}
-                    </p>}
                 {/* <p className={styles.message}>Message: {messageFromWs}</p> */}
                 <input
                     className={styles.messageInput}

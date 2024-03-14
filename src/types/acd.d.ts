@@ -19,10 +19,6 @@ interface ClientPackage {
     message: string
 }
 
-interface MessageContainerProps {
-    message: string;
-}
-
 interface ChatProps {
     ws: React.RefObject<WebSocket>;
     messageFromWs: string

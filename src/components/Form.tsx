@@ -21,8 +21,12 @@ const ModalForm = ({ ws }: ModalFormProps) => {
     };
 
     const sendMessage = (): void => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    
         if (codeInput.message === '') {
             alert('Please enter a message');
+        } else if (!uuidRegex.test(codeInput.message)) {
+            alert('Please enter a valid UUID');
         } else if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             console.log("Outgoing message", codeInput);
             ws.current.send(JSON.stringify(codeInput));
@@ -33,6 +37,7 @@ const ModalForm = ({ ws }: ModalFormProps) => {
             setIsModalOpen(false);
         }
     };
+    
 
     const produceCode = (): void => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
