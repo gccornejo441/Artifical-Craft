@@ -13,7 +13,7 @@ See the Apache Version 2.0 License for specific language governing permissions
 and limitations under the License.
 ***************************************************************************** */
 
-type OutgoingMessageType = "MESSAGE" | "CODE" | "PRODUCE_CODE";
+type OutgoingMessageType = "MESSAGE" | "CODE" | "PRODUCE_CODE" | "ANSWER" | "ICE_CANDIDATE" | "OFFER";
 interface ClientPackage {
     type: OutgoingMessageType,
     message: string
@@ -25,8 +25,15 @@ interface ChatProps {
     wsState: WebSocketState
 }
 
-
 interface MessageHook {
     message: string
     setMessage: React.Dispatch<React.SetStateAction<string>>
+}
+
+interface ServerMessage {
+    type: OutgoingMessageType;
+    message: string;
+    sdp?: RTCSessionDescriptionInit;
+    candidate?: RTCIceCandidateInit;
+    sessionID?: string;
 }

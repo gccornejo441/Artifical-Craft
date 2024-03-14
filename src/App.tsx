@@ -13,7 +13,6 @@ interface FormState {
 function App() {
     const wsUrl = "ws://localhost:8080/ws"
   const { ws, wsState, message } = useWebSocket(wsUrl);
-  const { peerConnection } = useWebRTCClient(wsUrl);
 
   return (
     <div className="App">

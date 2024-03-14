@@ -35,10 +35,11 @@ type ICECandidate struct {
 }
 
 type ClientPackage struct {
-	Type    string             `json:"type"`
-	Message string             `json:"message"`
-	SDP     SessionDescription `json:"sdp,omitempty"`
-	ICE     ICECandidate       `json:"ice,omitempty"`
+	Type      string             `json:"type"`
+	Message   string             `json:"message"`
+	SDP       SessionDescription `json:"sdp,omitempty"`
+	ICE       ICECandidate       `json:"ice,omitempty"`
+	SessionID string             `json:"sessionID"`
 }
 
 func Signal(w http.ResponseWriter, r *http.Request) {
@@ -97,17 +98,29 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
+				clientPkg.Type = "OFFER"
+				clientPkg.Message = "Initial offer, waiting for answer..."
 				clientPkg.SDP = SessionDescription{Type: "offer", SDP: offer.SDP}
+				clientPkg.SessionID = sessionID
+
 				RedisBank(sessionID, clientPkg, rdb)
 
-				response := struct {
-					SessionID string                    `json:"sessionID"`
-					SDP       webrtc.SessionDescription `json:"sdp"`
-				}{
-					SessionID: sessionID,
-					SDP:       offer,
-				}
+				// response := struct {
+				// 	SessionID string                    `json:"sessionID"`
+				// 	SDP       webrtc.SessionDescription `json:"sdp"`
+				// }{
+				// 	SessionID: sessionID,
+				// 	SDP:       offer,
+				// }
 
+				response := ClientPackage{
+					Type:      "OFFER",
+					Message:   "Initial offer, waiting for answer...",
+					SDP:       SessionDescription{Type: "offer", SDP: offer.SDP},
+					ICE:       ICECandidate{},
+					SessionID: sessionID,
+				}
+				
 				respJSON, err := json.Marshal(response)
 				if err != nil {
 					log.Println("Failed to marshal response:", err)

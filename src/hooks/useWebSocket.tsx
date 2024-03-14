@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { handleIceCandidate, handleOffer, useWebRTCClient } from './useWebRTCClient';
 
 export const WebSocketReadyState = (websocket: WebSocket): string => {
   switch (websocket.readyState) {
@@ -19,6 +20,7 @@ export const useWebSocket = (url: string) => {
   const ws = useRef<WebSocket | null>(null);
   const [wsState, setWsState] = useState("UNKNOWN");
   const [message, setMessage] = useState<string>("");
+  const { peerConnection, setPeerConnection } = useWebRTCClient();
 
   useEffect(() => {
     ws.current = new WebSocket(url);
@@ -34,14 +36,34 @@ export const useWebSocket = (url: string) => {
 
     wsCurrent.onmessage = (event) => {
       console.log("Message received", event.data);
-
+      console.log("PEER CONNECTION", peerConnection);
       if (typeof event.data === 'string') {
+
+        if (peerConnection) {
+          const data: ServerMessage = JSON.parse(event.data);
+          debugger;
+          switch (data.type) {
+            case 'OFFER':
+              handleOffer(data.sdp!, peerConnection, wsCurrent);
+              break;
+            case 'ICE_CANDIDATE':
+              handleIceCandidate(data.candidate!, peerConnection);
+              break;
+            default:
+              console.error('Unknown message type:', data.type);
+          }
+
+        } else {
+          console.log("PeerConnection is null, cannot handle offer or ICE candidate.");
+        }
+
+      } else {
         try {
           const message = JSON.parse(event.data);
 
           if (message.sessionID && message.sdp) {
-            sessionStorage.setItem("sessionID", message.sessionID);
-            sessionStorage.setItem("sdp", JSON.stringify(message.sdp));
+            localStorage.setItem("sessionID", message.sessionID);
+            localStorage.setItem("sdp", JSON.stringify(message.sdp));
 
             console.log("Session information cached");
 
@@ -52,8 +74,9 @@ export const useWebSocket = (url: string) => {
         } catch (error) {
           console.error("Error parsing JSON from WebSocket message:", error);
         }
-      } 
+      }
     };
+
 
     wsCurrent.onerror = (error) => {
       console.error("WebSocket Error", error);
@@ -64,7 +87,7 @@ export const useWebSocket = (url: string) => {
       wsCurrent.close();
     };
 
-  }, [url, ws]);
+  }, [url, ws, peerConnection]);
 
   const sendMessage = (data: ClientPackage) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
