@@ -36,6 +36,7 @@ export const useWebSocket = (url: string) => {
 
     wsCurrent.onmessage = (event) => {
       console.log("Message received", event.data);
+      console.log("Message recieved of type", event.data);
       console.log("PEER CONNECTION", peerConnection);
       if (typeof event.data === 'string') {
 
@@ -48,6 +49,19 @@ export const useWebSocket = (url: string) => {
               break;
             case 'ICE_CANDIDATE':
               handleIceCandidate(data.candidate!, peerConnection);
+              break;
+            case 'ANSWER':
+              peerConnection.setRemoteDescription(data.sdp!)
+                .catch((error) => console.error('Error handling ANSWER:', error));
+              break;
+            case 'CODE':
+              localStorage.setItem("code", data.message);
+              break;
+            case 'PRODUCE_CODE':
+              localStorage.setItem("code", data.message);
+              break;
+            case 'MESSAGE':
+              setMessage(data.message);
               break;
             default:
               console.error('Unknown message type:', data.type);

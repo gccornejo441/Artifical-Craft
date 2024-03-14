@@ -34,12 +34,23 @@ type ICECandidate struct {
 	Candidate string `json:"candidate"`
 }
 
+type OutgoingMessageType string
+
+const (
+	MessageType      OutgoingMessageType = "MESSAGE"
+	CodeType         OutgoingMessageType = "CODE"
+	ProductCodeType  OutgoingMessageType = "PRODUCE_CODE"
+	AnswerType       OutgoingMessageType = "ANSWER"
+	ICECandidateType OutgoingMessageType = "ICE_CANDIDATE"
+	OfferType        OutgoingMessageType = "OFFER"
+)
+
 type ClientPackage struct {
-	Type      string             `json:"type"`
-	Message   string             `json:"message"`
-	SDP       SessionDescription `json:"sdp,omitempty"`
-	ICE       ICECandidate       `json:"ice,omitempty"`
-	SessionID string             `json:"sessionID"`
+	Type      OutgoingMessageType `json:"type"`
+	Message   string              `json:"message"`
+	SDP       SessionDescription  `json:"sdp,omitempty"`
+	ICE       ICECandidate        `json:"ice,omitempty"`
+	SessionID string              `json:"sessionID"`
 }
 
 func Signal(w http.ResponseWriter, r *http.Request) {
@@ -98,21 +109,6 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 
-				clientPkg.Type = "OFFER"
-				clientPkg.Message = "Initial offer, waiting for answer..."
-				clientPkg.SDP = SessionDescription{Type: "offer", SDP: offer.SDP}
-				clientPkg.SessionID = sessionID
-
-				RedisBank(sessionID, clientPkg, rdb)
-
-				// response := struct {
-				// 	SessionID string                    `json:"sessionID"`
-				// 	SDP       webrtc.SessionDescription `json:"sdp"`
-				// }{
-				// 	SessionID: sessionID,
-				// 	SDP:       offer,
-				// }
-
 				response := ClientPackage{
 					Type:      "OFFER",
 					Message:   "Initial offer, waiting for answer...",
@@ -120,7 +116,9 @@ func Signal(w http.ResponseWriter, r *http.Request) {
 					ICE:       ICECandidate{},
 					SessionID: sessionID,
 				}
-				
+
+				RedisBank(sessionID, response, rdb)
+
 				respJSON, err := json.Marshal(response)
 				if err != nil {
 					log.Println("Failed to marshal response:", err)
@@ -177,20 +175,25 @@ func handleClientMessage(c *websocket.Conn, clientPkg ClientPackage) {
 
 	clientMsgString := strings.ToLower(clientPkg.Message)
 
-	var response interface{}
+	var response ClientPackage
 
 	if clientMsgString == "ping" {
-		response = struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
-		}{
-			Type:    "PONG",
-			Message: "Pong",
+		response = ClientPackage{
+			Type:      "MESSAGE",
+			Message:   "Pong!",
+			SDP:       SessionDescription{},
+			ICE:       ICECandidate{},
+			SessionID: "",
 		}
+
 	} else {
-		clientPkg.Message = "Hello, User!"
-		clientPkg.Type = "Message"
-		response = clientPkg
+		response = ClientPackage{
+			Type:      "MESSAGE",
+			Message:   "Pong!",
+			SDP:       SessionDescription{},
+			ICE:       ICECandidate{},
+			SessionID: "",
+		}
 	}
 
 	sendResponse(c, response)
